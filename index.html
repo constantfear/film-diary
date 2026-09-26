@@ -12,12 +12,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
-    --bg:#0A0912; --surface:#151321; --surface-2:#1D1A2E;
+    --bg:#0A0912; --surface:#18152A; --surface-2:#221D3B;
     --text:#EFEBFA; --muted:#8A85A6; --border:rgba(239,235,250,.10);
-    --accent:#00E0D6; --accent-ink:#06110F;
+    --accent:#00E0D6; --accent-ink:#06110F; --star:#FFD84D;
     --movie:#FF3D7F; --series:#FFB020; --anime:#8C5CFF;
     --shadow:0 2px 10px rgba(0,0,0,.45);
     --glow:0 0 16px rgba(0,224,214,.45);
+    --edge:1px solid rgba(0,224,214,.22);
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -39,16 +40,22 @@
   header{padding:22px 4px 14px;}
   h1{font-size:1.7rem;margin:0 0 4px;letter-spacing:.02em;}
   .stats{color:var(--muted);font-size:.88rem;}
-  .controls{position:sticky;top:0;background:var(--bg);padding:8px 0 10px;z-index:5;}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:6px;}
+  .tab{
+    flex:1;background:none;border:none;color:var(--muted);padding:10px 4px 12px;
+    font-size:.83rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab.active{color:var(--text);border-bottom-color:var(--accent);text-shadow:0 0 10px rgba(0,224,214,.5);}
+  .controls{position:sticky;top:0;background:rgba(10,9,18,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px 0 10px;z-index:5;}
   input[type="search"]{
-    width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+    width:100%;padding:10px 12px;border-radius:10px;border:var(--edge);
     background:var(--surface);color:var(--text);font-size:.95rem;
   }
   input[type="search"]::placeholder{color:var(--muted);}
   .chips{display:flex;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:2px;}
   .chip{flex-shrink:0;}
   .chip{
-    padding:6px 14px;border-radius:999px;border:1px solid var(--border);
+    padding:6px 14px;border-radius:999px;border:var(--edge);
     background:var(--surface);color:var(--muted);font-size:.85rem;cursor:pointer;
   }
   .chip.active{background:var(--text);color:var(--bg);border-color:var(--text);}
@@ -62,6 +69,16 @@
   .card.anime{border-left-color:var(--anime);}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
   .card-title{font-size:1.05rem;font-weight:600;margin:0;}
+  .card-title.best{
+    background:linear-gradient(90deg,var(--star),var(--movie),var(--anime),var(--accent),var(--star));
+    background-size:300% 100%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .card-title.best{animation:shimmer 5s linear infinite;}
+  }
+  @keyframes shimmer{0%{background-position:0% 50%;}100%{background-position:300% 50%;}}
+  .icon-btn.best-on{color:var(--star);text-shadow:0 0 8px rgba(255,216,77,.6);}
   .card-actions{display:flex;gap:4px;flex-shrink:0;}
   .icon-btn{
     background:none;border:none;color:var(--muted);padding:6px;cursor:pointer;
@@ -69,7 +86,7 @@
   }
   .icon-btn:active{background:var(--surface-2);}
   .meta-row{display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;}
-  .stars{color:var(--accent);font-size:.9rem;letter-spacing:1px;}
+  .stars{color:var(--star);font-size:.9rem;letter-spacing:1px;}
   .badge{font-size:.7rem;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:1px 6px;}
   .date{font-size:.8rem;color:var(--muted);}
   .note{margin:8px 0 0;font-size:.88rem;color:var(--muted);line-height:1.4;}
@@ -108,16 +125,17 @@
   .type-toggle button.active{background:var(--text);color:var(--bg);border-color:var(--text);}
   .star-pick{display:flex;gap:6px;}
   .star-pick button{
-    background:none;border:none;font-size:1.6rem;color:var(--border);cursor:pointer;padding:2px;
+    background:none;border:none;font-size:1.9rem;color:rgba(239,235,250,.28);cursor:pointer;padding:2px;
     line-height:1;
   }
-  .star-pick button.on{color:var(--accent);}
+  .star-pick button.on{color:var(--star);text-shadow:0 0 10px rgba(255,216,77,.55);}
   .sheet-actions{display:flex;gap:10px;margin-top:20px;}
   .btn{
     flex:1;padding:12px;border-radius:10px;border:none;font-size:.95rem;cursor:pointer;font-weight:600;
   }
   .btn.primary{background:var(--accent);color:var(--accent-ink);}
   .btn.ghost{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+  .field-hide{display:none;}
 </style>
 </head>
 <body>
@@ -126,6 +144,11 @@
     <h1 class="serif">Дневник просмотров</h1>
     <div class="stats" id="stats"></div>
   </header>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-status="watched">Просмотрено</button>
+    <button class="tab" data-status="want">Хочу посмотреть</button>
+    <button class="tab" data-status="dropped">Забросил</button>
+  </div>
   <div class="controls">
     <input type="search" id="search" placeholder="Найти по названию…">
     <div class="chips">
@@ -147,6 +170,13 @@
       <label for="fTitle">Название</label>
       <input type="text" id="fTitle" required placeholder="Например, «Матрица»">
 
+      <label>Статус</label>
+      <div class="type-toggle" id="statusToggle">
+        <button type="button" data-status="watched" class="active">Просмотрено</button>
+        <button type="button" data-status="want">Хочу</button>
+        <button type="button" data-status="dropped">Забросил</button>
+      </div>
+
       <label>Тип</label>
       <div class="type-toggle">
         <button type="button" data-type="movie" class="active">Фильм</button>
@@ -154,16 +184,18 @@
         <button type="button" data-type="anime">Аниме</button>
       </div>
 
-      <label>Оценка</label>
-      <div class="star-pick" id="starPick">
-        <button type="button" data-v="1">★</button>
-        <button type="button" data-v="2">★</button>
-        <button type="button" data-v="3">★</button>
-        <button type="button" data-v="4">★</button>
-        <button type="button" data-v="5">★</button>
+      <div id="ratingGroup">
+        <label>Оценка</label>
+        <div class="star-pick" id="starPick">
+          <button type="button" data-v="1">★</button>
+          <button type="button" data-v="2">★</button>
+          <button type="button" data-v="3">★</button>
+          <button type="button" data-v="4">★</button>
+          <button type="button" data-v="5">★</button>
+        </div>
       </div>
 
-      <label for="fDate">Дата просмотра</label>
+      <label for="fDate" id="dateLabel">Дата просмотра</label>
       <input type="date" id="fDate">
 
       <label for="fNote">Заметка (необязательно)</label>
@@ -183,7 +215,7 @@
   var entries = [];
   try { entries = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ entries = []; }
 
-  var state = { filter:'all', search:'', editingId:null, type:'movie', rating:0 };
+  var state = { filter:'all', search:'', editingId:null, type:'movie', rating:0, status:'watched', formStatus:'watched' };
 
   var listEl = document.getElementById('list');
   var statsEl = document.getElementById('stats');
@@ -192,6 +224,8 @@
   var form = document.getElementById('entryForm');
   var starPick = document.getElementById('starPick');
   var sheetTitle = document.getElementById('sheetTitle');
+  var ratingGroup = document.getElementById('ratingGroup');
+  var dateLabel = document.getElementById('dateLabel');
 
   var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 
@@ -222,22 +256,23 @@
 
   function render(){
     var q = state.search.trim().toLowerCase();
-    var filtered = entries.filter(function(e){
+    var inTab = entries.filter(function(e){ return (e.status||'watched') === state.status; });
+    var filtered = inTab.filter(function(e){
       if(state.filter !== 'all' && e.type !== state.filter) return false;
       if(q && e.title.toLowerCase().indexOf(q) === -1) return false;
       return true;
     });
     filtered.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
 
-    var movies = entries.filter(function(e){return e.type==='movie';}).length;
-    var series = entries.filter(function(e){return e.type==='series';}).length;
-    var anime = entries.filter(function(e){return e.type==='anime';}).length;
+    var movies = inTab.filter(function(e){return e.type==='movie';}).length;
+    var series = inTab.filter(function(e){return e.type==='series';}).length;
+    var anime = inTab.filter(function(e){return e.type==='anime';}).length;
     statsEl.textContent = movies + ' ' + pluralFilm(movies) + ' · ' + series + ' ' + pluralSeries(series) + ' · ' + anime + ' аниме';
 
     if(filtered.length === 0){
       listEl.innerHTML = '<div class="empty"><div class="big">🎬</div>' +
-        (entries.length === 0
-          ? 'Пока пусто. Нажмите «+», чтобы записать первый просмотр.'
+        (inTab.length === 0
+          ? 'Пока пусто здесь.'
           : 'Ничего не найдено.') + '</div>';
       return;
     }
@@ -253,8 +288,9 @@
       var stars = '';
       for(var i=1;i<=5;i++) stars += (i<=e.rating ? '★' : '☆');
       html += '<div class="card ' + (e.type==='series'?'series':e.type==='anime'?'anime':'') + '" data-id="' + e.id + '">' +
-        '<div class="card-top"><p class="card-title">' + escapeHtml(e.title) + '</p>' +
+        '<div class="card-top"><p class="card-title' + (e.best?' best':'') + '">' + escapeHtml(e.title) + '</p>' +
         '<div class="card-actions">' +
+        '<button class="icon-btn' + (e.best?' best-on':'') + '" data-action="best" data-id="' + e.id + '" aria-label="Лучшее">' + (e.best?'★':'☆') + '</button>' +
         '<button class="icon-btn" data-action="edit" data-id="' + e.id + '">✎</button>' +
         '<button class="icon-btn" data-action="delete" data-id="' + e.id + '">🗑</button>' +
         '</div></div>' +
@@ -293,6 +329,7 @@
     document.getElementById('fNote').value = entry ? (entry.note||'') : '';
     document.getElementById('fDate').value = entry ? (entry.date||'') : new Date().toISOString().slice(0,10);
     setType(entry ? entry.type : 'movie');
+    setStatus(entry ? (entry.status||'watched') : state.status);
     setRating(entry ? entry.rating : 0);
     overlay.classList.add('open');
     document.getElementById('fTitle').focus();
@@ -304,9 +341,17 @@
 
   function setType(t){
     state.type = t;
-    document.querySelectorAll('.type-toggle button').forEach(function(b){
+    document.querySelectorAll('.type-toggle button[data-type]').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-type')===t);
     });
+  }
+  function setStatus(s){
+    state.formStatus = s;
+    document.querySelectorAll('#statusToggle button').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-status')===s);
+    });
+    ratingGroup.classList.toggle('field-hide', s==='want');
+    dateLabel.textContent = s==='want' ? 'Дата (необязательно)' : 'Дата просмотра';
   }
   function setRating(r){
     state.rating = r;
@@ -315,8 +360,11 @@
     });
   }
 
-  document.querySelectorAll('.type-toggle button').forEach(function(b){
+  document.querySelectorAll('.type-toggle button[data-type]').forEach(function(b){
     b.addEventListener('click', function(){ setType(b.getAttribute('data-type')); });
+  });
+  document.querySelectorAll('#statusToggle button').forEach(function(b){
+    b.addEventListener('click', function(){ setStatus(b.getAttribute('data-status')); });
   });
   starPick.addEventListener('click', function(ev){
     var b = ev.target.closest('button');
@@ -336,6 +384,7 @@
     var data = {
       title: title,
       type: state.type,
+      status: state.formStatus,
       rating: state.rating,
       date: document.getElementById('fDate').value,
       note: document.getElementById('fNote').value.trim()
@@ -361,6 +410,12 @@
     if(action === 'edit'){
       var entry = entries.find(function(e){return e.id===id;});
       if(entry) openModal(entry);
+    } else if(action === 'best'){
+      entries = entries.map(function(e){
+        return e.id === id ? Object.assign({}, e, {best: !e.best}) : e;
+      });
+      save();
+      render();
     } else if(action === 'delete'){
       if(confirm('Удалить эту запись?')){
         entries = entries.filter(function(e){return e.id!==id;});
@@ -368,6 +423,15 @@
         render();
       }
     }
+  });
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      state.status = t.getAttribute('data-status');
+      render();
+    });
   });
 
   document.querySelectorAll('.chip').forEach(function(c){
