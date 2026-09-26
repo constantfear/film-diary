@@ -228,6 +228,7 @@
   var dateLabel = document.getElementById('dateLabel');
 
   var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  var MONTHS_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
   function save(){
     try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch(e){}
@@ -245,7 +246,7 @@
   function monthLabel(d){
     if(!d) return 'Без даты';
     var parts = d.split('-');
-    return MONTHS[parseInt(parts[1],10)-1].replace(/^./,function(c){return c.toUpperCase();}) + ' ' + parts[0];
+    return MONTHS_NOM[parseInt(parts[1],10)-1] + ' ' + parts[0];
   }
 
   function escapeHtml(s){
