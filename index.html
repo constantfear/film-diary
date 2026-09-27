@@ -272,7 +272,7 @@
   var entries = [];
   try { entries = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ entries = []; }
 
-  var state = { filter:'all', search:'', editingId:null, type:'movie', rating:0, status:'watched', formStatus:'watched', bestOnly:false, minRating:0 };
+  var state = { filterTypes: new Set(), search:'', editingId:null, type:'movie', rating:0, status:'watched', formStatus:'watched', bestOnly:false, minRating:0 };
 
   var TYPE_LABELS = { movie:'фильм', series:'сериал', anime:'аниме', cartoon_movie:'мультфильм', cartoon_series:'мультсериал', dorama:'дорама' };
 
@@ -341,7 +341,7 @@
     var q = state.search.trim().toLowerCase();
     var inTab = entries.filter(function(e){ return (e.status||'watched') === state.status; });
     var filtered = inTab.filter(function(e){
-      if(state.filter !== 'all' && e.type !== state.filter) return false;
+      if(state.filterTypes.size > 0 && !state.filterTypes.has(e.type)) return false;
       if(state.bestOnly && !e.best) return false;
       if(state.minRating > 0 && (e.rating||0) < state.minRating) return false;
       if(q && e.title.toLowerCase().indexOf(q) === -1) return false;
@@ -349,7 +349,7 @@
     });
     filtered.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
 
-    filterBtn.classList.toggle('on', state.filter!=='all' || state.bestOnly || state.minRating>0);
+    filterBtn.classList.toggle('on', state.filterTypes.size>0 || state.bestOnly || state.minRating>0);
 
     statsEl.textContent = inTab.length + ' ' + pluralEntries(inTab.length);
 
@@ -399,11 +399,14 @@
     setStatus(entry ? (entry.status||'watched') : state.status);
     setRating(entry ? entry.rating : 0);
     overlay.classList.add('open');
+    history.pushState({modal:'entry'}, '');
     document.getElementById('fTitle').focus();
   }
   function closeModal(){
+    if(!overlay.classList.contains('open')) return;
     overlay.classList.remove('open');
     form.reset();
+    history.back();
   }
 
   function setType(t){
@@ -503,9 +506,18 @@
 
   document.querySelectorAll('#filterTypeToggle button').forEach(function(b){
     b.addEventListener('click', function(){
-      document.querySelectorAll('#filterTypeToggle button').forEach(function(x){x.classList.remove('active');});
-      b.classList.add('active');
-      state.filter = b.getAttribute('data-type');
+      var t = b.getAttribute('data-type');
+      if(t === 'all'){
+        state.filterTypes.clear();
+      } else if(state.filterTypes.has(t)){
+        state.filterTypes.delete(t);
+      } else {
+        state.filterTypes.add(t);
+      }
+      document.querySelectorAll('#filterTypeToggle button').forEach(function(x){
+        var xt = x.getAttribute('data-type');
+        x.classList.toggle('active', xt==='all' ? state.filterTypes.size===0 : state.filterTypes.has(xt));
+      });
       render();
     });
   });
@@ -527,12 +539,25 @@
     render();
   });
 
-  filterBtn.addEventListener('click', function(){ filterOverlay.classList.add('open'); });
-  document.getElementById('filterDone').addEventListener('click', function(){ filterOverlay.classList.remove('open'); });
-  filterOverlay.addEventListener('click', function(ev){ if(ev.target === filterOverlay) filterOverlay.classList.remove('open'); });
+  filterBtn.addEventListener('click', function(){
+    filterOverlay.classList.add('open');
+    history.pushState({modal:'filter'}, '');
+  });
+  function closeFilterOverlay(){
+    if(!filterOverlay.classList.contains('open')) return;
+    filterOverlay.classList.remove('open');
+    history.back();
+  }
+  document.getElementById('filterDone').addEventListener('click', closeFilterOverlay);
+  filterOverlay.addEventListener('click', function(ev){ if(ev.target === filterOverlay) closeFilterOverlay(); });
+
+  window.addEventListener('popstate', function(){
+    overlay.classList.remove('open');
+    filterOverlay.classList.remove('open');
+  });
 
   document.getElementById('filterReset').addEventListener('click', function(){
-    state.filter = 'all'; state.minRating = 0; state.bestOnly = false;
+    state.filterTypes.clear(); state.minRating = 0; state.bestOnly = false;
     document.querySelectorAll('#filterTypeToggle button').forEach(function(x){x.classList.toggle('active', x.getAttribute('data-type')==='all');});
     filterStarPick.querySelectorAll('button').forEach(function(sb){ sb.classList.remove('on'); });
     filterBestBtn.classList.remove('active');
