@@ -16,6 +16,7 @@
     --text:#EFEBFA; --muted:#8A85A6; --border:rgba(239,235,250,.10);
     --accent:#00E0D6; --accent-ink:#06110F; --star:#FFD84D;
     --movie:#FF3D7F; --series:#FFB020; --anime:#8C5CFF;
+    --cmovie:#2FE6B0; --cseries:#FF6B4A; --dorama:#4FA8FF;
     --shadow:0 2px 10px rgba(0,0,0,.45);
     --glow:0 0 16px rgba(0,224,214,.45);
     --edge:1px solid rgba(0,224,214,.22);
@@ -52,13 +53,22 @@
     background:var(--surface);color:var(--text);font-size:.95rem;
   }
   input[type="search"]::placeholder{color:var(--muted);}
-  .chips{display:flex;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:2px;}
-  .chip{flex-shrink:0;}
-  .chip{
-    padding:6px 14px;border-radius:999px;border:var(--edge);
-    background:var(--surface);color:var(--muted);font-size:.85rem;cursor:pointer;
+  .search-row{display:flex;gap:8px;}
+  .search-row input[type="search"]{flex:1;}
+  .filter-btn{
+    position:relative;flex-shrink:0;width:42px;border-radius:10px;border:var(--edge);
+    background:var(--surface);color:var(--text);font-size:1.1rem;cursor:pointer;
   }
-  .chip.active{background:var(--text);color:var(--bg);border-color:var(--text);}
+  .filter-btn .dot{
+    position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;
+    background:var(--star);display:none;box-shadow:0 0 6px rgba(255,216,77,.7);
+  }
+  .filter-btn.on .dot{display:block;}
+  .backup-row{display:flex;gap:14px;margin-top:10px;}
+  .backup-row button, .backup-row label{
+    background:none;border:none;color:var(--muted);font-size:.8rem;cursor:pointer;
+    padding:0;text-decoration:underline;text-underline-offset:2px;
+  }
   .month{color:var(--muted);font-size:.8rem;margin:18px 2px 8px;text-transform:none;}
   .card{
     position:relative;background:var(--surface);border-radius:10px;
@@ -67,6 +77,9 @@
   }
   .card.series{border-left-color:var(--series);}
   .card.anime{border-left-color:var(--anime);}
+  .card.cartoon_movie{border-left-color:var(--cmovie);}
+  .card.cartoon_series{border-left-color:var(--cseries);}
+  .card.dorama{border-left-color:var(--dorama);}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
   .card-title{font-size:1.05rem;font-weight:600;margin:0;}
   .card-title.best{
@@ -98,7 +111,7 @@
     border:none;font-size:1.6rem;box-shadow:var(--glow),0 4px 14px rgba(0,0,0,.4);cursor:pointer;
     display:flex;align-items:center;justify-content:center;z-index:10;
   }
-  .chip.active{box-shadow:var(--glow);}
+  .filter-btn.on{box-shadow:var(--glow);border-color:var(--accent);}
   .overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
     align-items:flex-end;justify-content:center;z-index:20;
@@ -112,17 +125,23 @@
   .sheet h2{margin:0 0 14px;font-size:1.15rem;}
   label{display:block;font-size:.82rem;color:var(--muted);margin:14px 0 6px;}
   label:first-of-type{margin-top:0;}
+  #ratingGroup label{margin-top:14px;}
   input[type="text"],input[type="date"],textarea{
     width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
     background:var(--surface);color:var(--text);font-size:.95rem;font-family:inherit;
   }
   textarea{resize:vertical;min-height:60px;}
-  .type-toggle{display:flex;gap:8px;}
+  .type-toggle{display:flex;flex-wrap:wrap;gap:8px;}
   .type-toggle button{
-    flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
-    background:var(--surface);color:var(--muted);font-size:.9rem;cursor:pointer;
+    flex:1 1 28%;padding:10px 4px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface);color:var(--muted);font-size:.85rem;cursor:pointer;
   }
   .type-toggle button.active{background:var(--text);color:var(--bg);border-color:var(--text);}
+  .toggle-pill{
+    width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface);color:var(--muted);font-size:.9rem;cursor:pointer;
+  }
+  .toggle-pill.active{background:var(--star);color:var(--accent-ink);border-color:var(--star);}
   .star-pick{display:flex;gap:6px;}
   .star-pick button{
     background:none;border:none;font-size:1.9rem;color:rgba(239,235,250,.28);cursor:pointer;padding:2px;
@@ -143,6 +162,11 @@
   <header>
     <h1 class="serif">Дневник просмотров</h1>
     <div class="stats" id="stats"></div>
+    <div class="backup-row">
+      <button id="exportBtn" type="button">⤓ Сохранить резервную копию</button>
+      <button id="importBtn" type="button">⤒ Восстановить из файла</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
   </header>
   <div class="tabs" id="tabs">
     <button class="tab active" data-status="watched">Просмотрено</button>
@@ -150,12 +174,9 @@
     <button class="tab" data-status="dropped">Забросил</button>
   </div>
   <div class="controls">
-    <input type="search" id="search" placeholder="Найти по названию…">
-    <div class="chips">
-      <button class="chip active" data-filter="all">Всё</button>
-      <button class="chip" data-filter="movie">Фильмы</button>
-      <button class="chip" data-filter="series">Сериалы</button>
-      <button class="chip" data-filter="anime">Аниме</button>
+    <div class="search-row">
+      <input type="search" id="search" placeholder="Найти по названию…">
+      <button class="filter-btn" id="filterBtn" aria-label="Фильтры">▤<span class="dot"></span></button>
     </div>
   </div>
   <div id="list"></div>
@@ -182,6 +203,9 @@
         <button type="button" data-type="movie" class="active">Фильм</button>
         <button type="button" data-type="series">Сериал</button>
         <button type="button" data-type="anime">Аниме</button>
+        <button type="button" data-type="cartoon_movie">Мультфильм</button>
+        <button type="button" data-type="cartoon_series">Мультсериал</button>
+        <button type="button" data-type="dorama">Дорама</button>
       </div>
 
       <div id="ratingGroup">
@@ -209,13 +233,48 @@
   </div>
 </div>
 
+<div class="overlay" id="filterOverlay">
+  <div class="sheet">
+    <h2 class="serif">Фильтры</h2>
+    <label>Тип</label>
+    <div class="type-toggle" id="filterTypeToggle">
+      <button type="button" data-type="dorama">Дорама</button>
+      <button type="button" data-type="movie">Фильм</button>
+      <button type="button" data-type="series">Сериал</button>
+      <button type="button" data-type="anime">Аниме</button>
+      <button type="button" data-type="cartoon_movie">Мультфильм</button>
+      <button type="button" data-type="cartoon_series">Мультсериал</button>
+      <button type="button" data-type="all" class="active">Все</button>
+    </div>
+
+    <label>Оценка не ниже</label>
+    <div class="star-pick" id="filterStarPick">
+      <button type="button" data-v="1">★</button>
+      <button type="button" data-v="2">★</button>
+      <button type="button" data-v="3">★</button>
+      <button type="button" data-v="4">★</button>
+      <button type="button" data-v="5">★</button>
+    </div>
+
+    <label>&nbsp;</label>
+    <button type="button" class="toggle-pill" id="filterBestBtn">★ Только лучшее</button>
+
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="filterReset">Сбросить</button>
+      <button type="button" class="btn primary" id="filterDone">Готово</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   var KEY = 'filmDiary:entries';
   var entries = [];
   try { entries = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ entries = []; }
 
-  var state = { filter:'all', search:'', editingId:null, type:'movie', rating:0, status:'watched', formStatus:'watched' };
+  var state = { filter:'all', search:'', editingId:null, type:'movie', rating:0, status:'watched', formStatus:'watched', bestOnly:false, minRating:0 };
+
+  var TYPE_LABELS = { movie:'фильм', series:'сериал', anime:'аниме', cartoon_movie:'мультфильм', cartoon_series:'мультсериал', dorama:'дорама' };
 
   var listEl = document.getElementById('list');
   var statsEl = document.getElementById('stats');
@@ -226,6 +285,13 @@
   var sheetTitle = document.getElementById('sheetTitle');
   var ratingGroup = document.getElementById('ratingGroup');
   var dateLabel = document.getElementById('dateLabel');
+  var exportBtn = document.getElementById('exportBtn');
+  var importBtn = document.getElementById('importBtn');
+  var importFile = document.getElementById('importFile');
+  var filterBtn = document.getElementById('filterBtn');
+  var filterOverlay = document.getElementById('filterOverlay');
+  var filterStarPick = document.getElementById('filterStarPick');
+  var filterBestBtn = document.getElementById('filterBestBtn');
 
   var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
   var MONTHS_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -235,6 +301,13 @@
   }
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function todayLocal(){
+    var d = new Date();
+    var m = String(d.getMonth()+1).padStart(2,'0');
+    var day = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
 
   function fmtDate(d){
     if(!d) return '';
@@ -255,20 +328,30 @@
     });
   }
 
+  function pluralEntries(n){
+    var m = n % 100;
+    if(m>=11 && m<=14) return 'записей';
+    var l = n % 10;
+    if(l===1) return 'запись';
+    if(l>=2 && l<=4) return 'записи';
+    return 'записей';
+  }
+
   function render(){
     var q = state.search.trim().toLowerCase();
     var inTab = entries.filter(function(e){ return (e.status||'watched') === state.status; });
     var filtered = inTab.filter(function(e){
       if(state.filter !== 'all' && e.type !== state.filter) return false;
+      if(state.bestOnly && !e.best) return false;
+      if(state.minRating > 0 && (e.rating||0) < state.minRating) return false;
       if(q && e.title.toLowerCase().indexOf(q) === -1) return false;
       return true;
     });
     filtered.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
 
-    var movies = inTab.filter(function(e){return e.type==='movie';}).length;
-    var series = inTab.filter(function(e){return e.type==='series';}).length;
-    var anime = inTab.filter(function(e){return e.type==='anime';}).length;
-    statsEl.textContent = movies + ' ' + pluralFilm(movies) + ' · ' + series + ' ' + pluralSeries(series) + ' · ' + anime + ' аниме';
+    filterBtn.classList.toggle('on', state.filter!=='all' || state.bestOnly || state.minRating>0);
+
+    statsEl.textContent = inTab.length + ' ' + pluralEntries(inTab.length);
 
     if(filtered.length === 0){
       listEl.innerHTML = '<div class="empty"><div class="big">🎬</div>' +
@@ -288,7 +371,7 @@
       }
       var stars = '';
       for(var i=1;i<=5;i++) stars += (i<=e.rating ? '★' : '☆');
-      html += '<div class="card ' + (e.type==='series'?'series':e.type==='anime'?'anime':'') + '" data-id="' + e.id + '">' +
+      html += '<div class="card ' + e.type + '" data-id="' + e.id + '">' +
         '<div class="card-top"><p class="card-title' + (e.best?' best':'') + '">' + escapeHtml(e.title) + '</p>' +
         '<div class="card-actions">' +
         '<button class="icon-btn' + (e.best?' best-on':'') + '" data-action="best" data-id="' + e.id + '" aria-label="Лучшее">' + (e.best?'★':'☆') + '</button>' +
@@ -297,7 +380,7 @@
         '</div></div>' +
         '<div class="meta-row">' +
         (e.rating>0 ? '<span class="stars">'+stars+'</span>' : '') +
-        '<span class="badge">' + (e.type==='series'?'сериал':e.type==='anime'?'аниме':'фильм') + '</span>' +
+        '<span class="badge">' + (TYPE_LABELS[e.type]||e.type) + '</span>' +
         (e.date ? '<span class="date">' + fmtDate(e.date) + '</span>' : '') +
         '</div>' +
         (e.note ? '<p class="note">' + escapeHtml(e.note) + '</p>' : '') +
@@ -306,29 +389,12 @@
     listEl.innerHTML = html;
   }
 
-  function pluralFilm(n){
-    var m = n % 100;
-    if(m>=11 && m<=14) return 'фильмов';
-    var l = n % 10;
-    if(l===1) return 'фильм';
-    if(l>=2 && l<=4) return 'фильма';
-    return 'фильмов';
-  }
-  function pluralSeries(n){
-    var m = n % 100;
-    if(m>=11 && m<=14) return 'сериалов';
-    var l = n % 10;
-    if(l===1) return 'сериал';
-    if(l>=2 && l<=4) return 'сериала';
-    return 'сериалов';
-  }
-
   function openModal(entry){
     state.editingId = entry ? entry.id : null;
     sheetTitle.textContent = entry ? 'Изменить запись' : 'Новая запись';
     document.getElementById('fTitle').value = entry ? entry.title : '';
     document.getElementById('fNote').value = entry ? (entry.note||'') : '';
-    document.getElementById('fDate').value = entry ? (entry.date||'') : new Date().toISOString().slice(0,10);
+    document.getElementById('fDate').value = entry ? (entry.date||'') : todayLocal();
     setType(entry ? entry.type : 'movie');
     setStatus(entry ? (entry.status||'watched') : state.status);
     setRating(entry ? entry.rating : 0);
@@ -435,18 +501,93 @@
     });
   });
 
-  document.querySelectorAll('.chip').forEach(function(c){
-    c.addEventListener('click', function(){
-      document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active');});
-      c.classList.add('active');
-      state.filter = c.getAttribute('data-filter');
+  document.querySelectorAll('#filterTypeToggle button').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#filterTypeToggle button').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');
+      state.filter = b.getAttribute('data-type');
       render();
     });
   });
 
+  filterStarPick.addEventListener('click', function(ev){
+    var b = ev.target.closest('button');
+    if(!b) return;
+    var v = parseInt(b.getAttribute('data-v'),10);
+    state.minRating = (v === state.minRating) ? 0 : v;
+    filterStarPick.querySelectorAll('button').forEach(function(sb){
+      sb.classList.toggle('on', parseInt(sb.getAttribute('data-v'),10) <= state.minRating);
+    });
+    render();
+  });
+
+  filterBestBtn.addEventListener('click', function(){
+    state.bestOnly = !state.bestOnly;
+    filterBestBtn.classList.toggle('active', state.bestOnly);
+    render();
+  });
+
+  filterBtn.addEventListener('click', function(){ filterOverlay.classList.add('open'); });
+  document.getElementById('filterDone').addEventListener('click', function(){ filterOverlay.classList.remove('open'); });
+  filterOverlay.addEventListener('click', function(ev){ if(ev.target === filterOverlay) filterOverlay.classList.remove('open'); });
+
+  document.getElementById('filterReset').addEventListener('click', function(){
+    state.filter = 'all'; state.minRating = 0; state.bestOnly = false;
+    document.querySelectorAll('#filterTypeToggle button').forEach(function(x){x.classList.toggle('active', x.getAttribute('data-type')==='all');});
+    filterStarPick.querySelectorAll('button').forEach(function(sb){ sb.classList.remove('on'); });
+    filterBestBtn.classList.remove('active');
+    render();
+  });
+
+  importBtn.addEventListener('click', function(){ importFile.click(); });
+
   searchEl.addEventListener('input', function(){
     state.search = searchEl.value;
     render();
+  });
+
+  exportBtn.addEventListener('click', function(){
+    try{
+      var blob = new Blob([JSON.stringify(entries, null, 2)], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var d = todayLocal();
+      a.href = url;
+      a.download = 'film-diary-backup-' + d + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }catch(e){ alert('Не получилось создать файл резервной копии.'); }
+  });
+
+  importFile.addEventListener('change', function(){
+    var file = importFile.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var incoming = JSON.parse(reader.result);
+        if(!Array.isArray(incoming)) throw new Error('bad format');
+        var existingIds = {};
+        entries.forEach(function(e){ existingIds[e.id] = true; });
+        var added = 0;
+        incoming.forEach(function(e){
+          if(e && e.id && !existingIds[e.id]){
+            entries.push(e);
+            existingIds[e.id] = true;
+            added++;
+          }
+        });
+        save();
+        render();
+        alert('Добавлено записей: ' + added + '.');
+      }catch(e){
+        alert('Не получилось прочитать файл — убедитесь, что это резервная копия из этого приложения.');
+      }
+      importFile.value = '';
+    };
+    reader.readAsText(file);
   });
 
   render();

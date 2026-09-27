@@ -1,4 +1,4 @@
-var CACHE = 'film-diary-v5';
+var CACHE = 'film-diary-v8';
 var FILES = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function(e){
