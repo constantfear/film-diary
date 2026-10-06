@@ -1,6 +1,6 @@
 {
-  "name": "Дневник просмотров",
-  "short_name": "Дневник",
+  "name": "Films Fairy",
+  "short_name": "Films Fairy",
   "description": "Личный список просмотренных фильмов и сериалов",
   "start_url": "./index.html",
   "scope": "./",
